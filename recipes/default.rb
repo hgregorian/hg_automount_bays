@@ -47,7 +47,7 @@ systemd_service 'mount-bay@' do
   service do
     type 'oneshot'
     timeout_start_sec '10'
-    exec_start "/opt/automount_bays/bin/device_helper.rb --add %I"
+    exec_start '/opt/automount_bays/bin/device_helper.rb --add %I'
   end
 end
 
@@ -57,7 +57,7 @@ systemd_service 'unmount-bay@' do
   service do
     type 'oneshot'
     timeout_start_sec '10'
-    exec_start "/opt/automount_bays/bin/device_helper.rb --remove %I"
+    exec_start '/opt/automount_bays/bin/device_helper.rb --remove %I'
   end
 end
 
@@ -68,7 +68,7 @@ systemd_udev_rules '99-automount-bays' do
       {
         'key' => 'KERNEL',
         'operator' => '!=',
-        'value' => 'sd[a-z]*1'
+        'value' => 'sd*[!0-9]'
       },
       {
         'key' => 'GOTO',

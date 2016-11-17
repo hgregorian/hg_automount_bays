@@ -1,6 +1,8 @@
 #!/bin/env ruby
 
 require 'fileutils'
+require 'logger'
+require 'mixlib/shellout'
 require 'open3'
 require 'optparse'
 require 'yaml'
@@ -13,6 +15,7 @@ program_name = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
 config_path = File.join(__dir__, '../etc', "#{program_name}.yml")
 app_config = YAML.load_file(config_path)
 @options = app_config.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+@log = Logger.new('/tmp/thelog.log')
 
 def sanitize_key(string)
   string.downcase!
@@ -25,10 +28,15 @@ def sanitize_key(string)
 end
 
 def hba_info
-  out = `/root/sas3ircu 0 display`
+  cmd = Mixlib::ShellOut.new('/root/sas3ircu 0 display')
+  cmd.run_command
+  abort 'Unable to retrieve HBA info!' if cmd.error?
 
-  sections = out.scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
+  ## Split stdout into device sections
+  sections = cmd.stdout.scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
+  @log.debug("Saw #{sections.length} sections")
 
+  ## Break individual entries in sections into key/value pairs
   sections.map! do |section|
     Hash[*section.map do |entry|
       kv_pairs = entry.split(':').map(&:strip)
@@ -37,29 +45,17 @@ def hba_info
     end.flatten]
   end
 
-  ## Populate hashes with WWN (worldwide name AKA WWID - worldwide ID)
+  ## Manipulate a couple of fields
   sections.each do |section|
     ## Sanitize drive "state" flag
     section[:state] = section[:state].match(/\((.*?)\)/)[1]
 
     ## Provide a reasonable physical bay ID (1-24, left to right, top to bottom)
     section[:bay_id] = (1..24).to_a.each_slice(4).to_a.map(&:reverse).flatten[section[:slot].to_i]
-
-    ## Convert provided GUID to a valid WWN/WWID
-    section[:wwn] = section[:guid].scan(/.{1,4}/).reverse.join.sub(/^0*/, '')
-
-    ## Scan for any partitions and create entries accordingly
-    begin
-      section[:dev_path] = File.realpath("/dev/disk/by-id/wwn-0x#{section[:wwn]}")
-      Dir.glob("/dev/disk/by-id/wwn-0x#{section[:wwn]}-part*").each do |part_path|
-        part = part_path.match(/.*-(part\d+)/)[1]
-        section[:"#{part}_path"] = File.realpath(part_path)
-      end
-    rescue => e
-      abort "Something unexpected happened: #{e}"
-    end
   end
-  sections
+
+  ## Provide hash with GUIDs (WWN/WWID) as keys
+  Hash[sections.map { |section| [section[:guid], section] }]
 end
 
 def run_command(cmd, abort_on_error = false)
@@ -90,6 +86,19 @@ def zero_padding(num, padding)
   num.to_s.rjust(padding.to_i, '0')
 end
 
+def blk_id_attrs(bay_id)
+  cmd = Mixlib::ShellOut.new("/sbin/blkid -o udev -p /dev/disk/by-bay/#{bay_id}")
+  cmd.run_command
+  Hash[*cmd.stdout.split("\n").map { |x| x.split('=') }.flatten]
+end
+
+def wwn_lookup(dev)
+  cmd = Mixlib::ShellOut.new("/lib/udev/scsi_id -g /dev/#{dev}")
+  cmd.run_command
+  abort 'No WWN present' if cmd.error?
+  cmd.stdout.chomp[1..-1]
+end
+
 begin
   opts = OptionParser.new do |o|
     o.banner = "Usage: #{program_name} [--add|--remove] [options]"
@@ -110,21 +119,26 @@ rescue OptionParser::InvalidOption, OptionParser::MissingArgument
   exit(1)
 end
 
-p @options
+@log.debug "Called with options #{@options}"
+@log.debug "ARGV[0] == #{ARGV[0]}"
 
-if ARGV[0] =~ /^sd[a-z]+\d+/
-  lookup_dev = ARGV[0].sub(/\d+$/, '')
-  result = hba_info.select { |section| section[:dev_path] =~ /#{lookup_dev}/ }[0]
+if ARGV[0] =~ /^sd[a-z]+$/
+  @log.debug 'Lookup in progress...'
+  dev = ARGV[0]
+
+  result = hba_info[wwn_lookup(dev)]
 
   ## Print environment variables for use with udev
   if result
+    @log.debug("Found result for #{dev}: #{result}")
     result.each do |k, v|
       value = v =~ /\s/ ? "'#{v}'" : v
       puts "#{k.upcase}=#{value}"
     end
     exit(0)
   else
-    puts "The device '#{lookup_dev}' is not managed by HBA."
+    @log.debug("No result for #{dev}")
+    puts "The device '#{dev}' is not managed by HBA."
     exit(1)
   end
 end
@@ -135,6 +149,8 @@ if @options[:add]
 
   ## Abort if the bay_id is not present as 'by-bay' symlink (very improbable)
   abort "Nothing found in bay '#{bay_id}'..." unless File.exist?("/dev/disk/by-bay/#{bay_id}")
+
+  abort "Drive in bay #{bay_id} not formatted correctly" unless blk_id_attrs(bay_id)['ID_FS_TYPE'] == 'ext4'
 
   ## Define mount point based on whether or not it has been designated as a parity bay
   mount_point = if parity_bay?(bay_id)

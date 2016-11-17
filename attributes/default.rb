@@ -11,7 +11,7 @@ default['hg_automount_bays']['app_config']['device_helper']['parity_bays'] = (1.
 default['hg_automount_bays']['app_config']['device_helper']['mount_root'] = '/mnt'
 default['hg_automount_bays']['app_config']['device_helper']['suffix_parity'] = 'parity'
 default['hg_automount_bays']['app_config']['device_helper']['suffix_data'] = 'data'
-default['hg_automount_bays']['app_config']['device_helper']['mergerfs_support'] = true
+default['hg_automount_bays']['app_config']['device_helper']['mergerfs_support'] = false
 
 ## Mergerfs attributes
 default['hg_mergerfs']['volumes'] = {
