@@ -19,8 +19,7 @@ app_config = YAML.load_file(config_path)
 
 def logger(sev, msg, fatal = false)
   @log.send(sev, msg)
-  abort msg if fatal
-  # fatal ? abort msg : puts msg
+  puts msg if fatal
 end
 
 def sanitize_key(string)
@@ -35,7 +34,8 @@ end
 
 def hba_info
   ## Split stdout into device sections
-  sections = run_command('sas3ircu 0 display', true).scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
+  result = run_command('/usr/local/sbin/sas3ircu 0 display', true)
+  sections = result.scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
   logger(:debug, "Saw #{sections.length} sections")
 
   ## Break individual entries in sections into key/value pairs
@@ -60,15 +60,19 @@ def hba_info
   Hash[sections.map { |section| [section[:guid], section] }]
 end
 
-def run_command(cmd)
+def run_command(cmd, abort_on_error = false)
   cmd = command.join(' ') if cmd.is_a?(Array)
   begin
     result = Mixlib::ShellOut.new(cmd).run_command
   rescue => e
     logger(:error, "Error running command #{cmd} - #{e}", true)
+    exit(1)
   end
-  logger(:error, "Error running command #{cmd}", true) if result.error?
-  cmd.stdout
+  if result.error?
+    logger(:error, "Error running command #{cmd}", true)
+    exit(1) if abort_on_error
+  end
+  result.stdout
 end
 
 def parity_bay?(bay)
@@ -91,7 +95,9 @@ end
 
 def wwn_lookup(dev)
   result = run_command("/lib/udev/scsi_id -g /dev/#{dev}", true)
-  result.chomp[1..-1]
+  wwn = result.chomp[1..-1]
+  logger(:debug, "WWN for #{dev}: #{wwn}")
+  wwn
 end
 
 begin
@@ -119,13 +125,13 @@ logger(:debug, "ARGV[0] == #{ARGV[0]}")
 
 if ARGV[0] =~ /^sd[a-z]+$/
   dev = ARGV[0]
-  logger(:info, 'Looking up information for #{dev}')
+  logger(:info, "Looking up information for #{dev}")
 
   result = hba_info[wwn_lookup(dev)]
 
   ## Print environment variables for use with udev
   if result
-    logger(:info, "Found result for #{dev}:")
+    logger(:info, "Result found for #{dev}")
     result.each do |k, v|
       value = v =~ /\s/ ? "'#{v}'" : v
       str = "#{k.upcase}=#{value}"
@@ -134,7 +140,7 @@ if ARGV[0] =~ /^sd[a-z]+$/
     end
     exit(0)
   else
-    logger(:warn, "No result for #{dev}; not managed by HBA")
+    logger(:warn, "No result found for #{dev}; not managed by HBA", true)
     exit(1)
   end
 end
