@@ -13,9 +13,15 @@ DRY_RUN = false
 program_name = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
 
 config_path = File.join(__dir__, '../etc', "#{program_name}.yml")
+@log = Logger.new(File.join(__dir__, '../var/log', "#{program_name}.log"))
 app_config = YAML.load_file(config_path)
 @options = app_config.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
-@log = Logger.new('/tmp/thelog.log')
+
+def logger(sev, msg, fatal = false)
+  @log.send(sev, msg)
+  abort msg if fatal
+  # fatal ? abort msg : puts msg
+end
 
 def sanitize_key(string)
   string.downcase!
@@ -28,13 +34,9 @@ def sanitize_key(string)
 end
 
 def hba_info
-  cmd = Mixlib::ShellOut.new('/root/sas3ircu 0 display')
-  cmd.run_command
-  abort 'Unable to retrieve HBA info!' if cmd.error?
-
   ## Split stdout into device sections
-  sections = cmd.stdout.scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
-  @log.debug("Saw #{sections.length} sections")
+  sections = run_command('sas3ircu 0 display', true).scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
+  logger(:debug, "Saw #{sections.length} sections")
 
   ## Break individual entries in sections into key/value pairs
   sections.map! do |section|
@@ -58,19 +60,15 @@ def hba_info
   Hash[sections.map { |section| [section[:guid], section] }]
 end
 
-def run_command(cmd, abort_on_error = false)
-  cmd = cmd.join(' ') if cmd.is_a?(Array)
-  printf "%s\n", cmd
-  return if DRY_RUN
-  _stdin, stdout_err, wait_thr = Open3.popen2e(cmd)
-  exit_status = wait_thr.value
-
-  stdout_err.readlines.each do |l|
-    puts l.chomp
+def run_command(cmd)
+  cmd = command.join(' ') if cmd.is_a?(Array)
+  begin
+    result = Mixlib::ShellOut.new(cmd).run_command
+  rescue => e
+    logger(:error, "Error running command #{cmd} - #{e}", true)
   end
-
-  abort("Error running #{cmd}") if !exit_status.success? && abort_on_error
-  exit_status.success?
+  logger(:error, "Error running command #{cmd}", true) if result.error?
+  cmd.stdout
 end
 
 def parity_bay?(bay)
@@ -87,16 +85,13 @@ def zero_padding(num, padding)
 end
 
 def blk_id_attrs(bay_id)
-  cmd = Mixlib::ShellOut.new("/sbin/blkid -o udev -p /dev/disk/by-bay/#{bay_id}")
-  cmd.run_command
-  Hash[*cmd.stdout.split("\n").map { |x| x.split('=') }.flatten]
+  result = run_command("/sbin/blkid -o udev -p /dev/disk/by-bay/#{bay_id}")
+  Hash[*result.split("\n").map { |x| x.split('=') }.flatten]
 end
 
 def wwn_lookup(dev)
-  cmd = Mixlib::ShellOut.new("/lib/udev/scsi_id -g /dev/#{dev}")
-  cmd.run_command
-  abort 'No WWN present' if cmd.error?
-  cmd.stdout.chomp[1..-1]
+  result = run_command("/lib/udev/scsi_id -g /dev/#{dev}", true)
+  result.chomp[1..-1]
 end
 
 begin
@@ -119,26 +114,27 @@ rescue OptionParser::InvalidOption, OptionParser::MissingArgument
   exit(1)
 end
 
-@log.debug "Called with options #{@options}"
-@log.debug "ARGV[0] == #{ARGV[0]}"
+logger(:debug, "Called with options #{@options}")
+logger(:debug, "ARGV[0] == #{ARGV[0]}")
 
 if ARGV[0] =~ /^sd[a-z]+$/
-  @log.debug 'Lookup in progress...'
   dev = ARGV[0]
+  logger(:info, 'Looking up information for #{dev}')
 
   result = hba_info[wwn_lookup(dev)]
 
   ## Print environment variables for use with udev
   if result
-    @log.debug("Found result for #{dev}: #{result}")
+    logger(:info, "Found result for #{dev}:")
     result.each do |k, v|
       value = v =~ /\s/ ? "'#{v}'" : v
-      puts "#{k.upcase}=#{value}"
+      str = "#{k.upcase}=#{value}"
+      puts str
+      logger(:debug, str)
     end
     exit(0)
   else
-    @log.debug("No result for #{dev}")
-    puts "The device '#{dev}' is not managed by HBA."
+    logger(:warn, "No result for #{dev}; not managed by HBA")
     exit(1)
   end
 end

@@ -11,7 +11,7 @@ include_recipe 'hg_mergerfs::default' if node['hg_automount_bays']['app_config']
 app_dir = node['hg_automount_bays']['app_path']
 bin_dir = File.join(app_dir, 'bin')
 etc_dir = File.join(app_dir, 'etc')
-%w(bin etc).each do |dir|
+%w(bin etc var/log).each do |dir|
   directory File.join(app_dir, dir) do
     owner 'root'
     group 'root'
@@ -39,6 +39,14 @@ end
 ## Deploy configuration file for 'device_helper' to app/etc
 file File.join(etc_dir, 'device_helper.yml') do
   content JSON.parse(node['hg_automount_bays']['app_config']['device_helper'].to_json).to_yaml
+end
+
+## Setup logrotate for 'reposync' logs
+logrotate_app 'reposync-log' do
+  path File.join(app_dir, 'var/log/device_helper.log')
+  frequency 'weekly'
+  rotate 4
+  create '644 root root'
 end
 
 ## Deploy system.unit for mounting bays
