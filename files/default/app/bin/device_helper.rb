@@ -53,7 +53,7 @@ def hba_info
     section[:state] = section[:state].match(/\((.*?)\)/)[1]
 
     ## Provide a reasonable physical bay ID (1-24, left to right, top to bottom)
-    section[:bay_id] = (1..24).to_a.each_slice(4).to_a.map(&:reverse).flatten[section[:slot].to_i]
+    section[:bay_id] = (1..@options[:number_of_bays]).to_a.each_slice(4).to_a.map(&:reverse).flatten[section[:slot].to_i]
   end
 
   ## Provide hash with GUIDs (WWN/WWID) as keys
@@ -163,7 +163,7 @@ if @options[:add]
 
   ## Create mount point and mount
   FileUtils.mkdir_p(mount_point)
-  run_command("/usr/bin/mount /dev/disk/by-bay/#{bay_id} #{mount_point}")
+  run_command("/usr/bin/mount -o #{@options[:mount_options].join(',')} /dev/disk/by-bay/#{bay_id} #{mount_point}")
 
   ## Add to merger volume if not in a parity bay
   mergerfs_ctl("/usr/local/sbin/mergerfs.ctl -m /storage add path #{mount_point}") unless parity_bay?(bay_id)

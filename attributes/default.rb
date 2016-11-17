@@ -12,11 +12,12 @@ default['hg_automount_bays']['app_config']['device_helper']['mount_root'] = '/mn
 default['hg_automount_bays']['app_config']['device_helper']['suffix_parity'] = 'parity'
 default['hg_automount_bays']['app_config']['device_helper']['suffix_data'] = 'data'
 default['hg_automount_bays']['app_config']['device_helper']['mergerfs_support'] = false
+default['hg_automount_bays']['app_config']['device_helper']['mount_options'] = %w(defaults errors=remount-ro)
 
 ## Mergerfs attributes
 default['hg_mergerfs']['volumes'] = {
   '/storage' => {
     'mount_points' => '/mnt/*-data',
-    'options' => ['category.create=eplfs', 'moveonenospc=true', 'defaults', 'allow_other', 'minfreespace=20G', 'fsname=mergerfsPool']
+    'options' => %w(defaults nofail category.create=eplfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool)
   }
 }
