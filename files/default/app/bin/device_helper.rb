@@ -88,7 +88,7 @@ def zero_padding(num, padding)
   num.to_s.rjust(padding.to_i, '0')
 end
 
-def blk_id_attrs(bay_id)
+def blkid_attrs(bay_id)
   result = run_command("/sbin/blkid -o udev -p /dev/disk/by-bay/#{bay_id}")
   Hash[*result.split("\n").map { |x| x.split('=') }.flatten]
 end
@@ -158,11 +158,11 @@ if @options[:add]
   end
 
   ## Check formatting
-  if blk_id_attrs(bay_id)['ID_FS_TYPE'] != 'ext4'
+  if blkid_attrs(bay_id)['ID_FS_TYPE'] != 'ext4'
     logger(:warn, "Drive in bay #{bay_id} not formatted correctly")
     if @options[:auto_format]
-      logger(:debug, "Formatting bay #{bay_id}")
-      run_command("mkfs.ext4 -F -m 0 '/dev/disk/by-bay/#{bay_id}'")
+      logger(:info, "Formatting bay #{bay_id}")
+      run_command("/usr/sbin/mkfs.ext4 -F -m 0 '/dev/disk/by-bay/#{bay_id}'")
     end
   end
 
@@ -175,7 +175,6 @@ if @options[:add]
 
   ## Create mount point and mount
   FileUtils.mkdir_p(mount_point)
-  run_command("/usr/bin/umount -l #{File.join(@options[:mount_root])}")
   run_command("/usr/bin/mount #{mount_point}")
 
   ## Add to merger volume if not in a parity bay
