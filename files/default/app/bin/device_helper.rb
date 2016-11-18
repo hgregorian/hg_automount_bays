@@ -149,10 +149,22 @@ if @options[:add]
   ## Store bay_id
   bay_id = @options[:add]
 
-  ## Abort if the bay_id is not present as 'by-bay' symlink (very improbable)
-  abort "Nothing found in bay '#{bay_id}'..." unless File.exist?("/dev/disk/by-bay/#{bay_id}")
+  logger(:info, "Adding drive in bay ID #{bay_id}")
 
-  abort "Drive in bay #{bay_id} not formatted correctly" unless blk_id_attrs(bay_id)['ID_FS_TYPE'] == 'ext4'
+  ## Abort if the bay_id is not present as 'by-bay' symlink (very improbable)
+  unless File.exist?("/dev/disk/by-bay/#{bay_id}")
+    logger(:error, "Nothing found in bay '#{bay_id}'...", true)
+    exit(1)
+  end
+
+  ## Check formatting
+  if blk_id_attrs(bay_id)['ID_FS_TYPE'] != 'ext4'
+    logger(:warn, "Drive in bay #{bay_id} not formatted correctly")
+    if @options[:auto_format]
+      logger(:debug, "Formatting bay #{bay_id}")
+      run_command("mkfs.ext4 -F -m 0 '/dev/disk/by-bay/#{bay_id}'")
+    end
+  end
 
   ## Define mount point based on whether or not it has been designated as a parity bay
   mount_point = if parity_bay?(bay_id)
@@ -163,7 +175,8 @@ if @options[:add]
 
   ## Create mount point and mount
   FileUtils.mkdir_p(mount_point)
-  run_command("/usr/bin/mount -o #{@options[:mount_options].join(',')} /dev/disk/by-bay/#{bay_id} #{mount_point}")
+  run_command("/usr/bin/umount -l #{File.join(@options[:mount_root])}")
+  run_command("/usr/bin/mount #{mount_point}")
 
   ## Add to merger volume if not in a parity bay
   mergerfs_ctl("/usr/local/sbin/mergerfs.ctl -m /storage add path #{mount_point}") unless parity_bay?(bay_id)
