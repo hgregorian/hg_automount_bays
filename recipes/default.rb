@@ -20,6 +20,27 @@ etc_dir = File.join(app_dir, 'etc')
   end
 end
 
+## Assign lists for bay designation
+bays = (1..node['hg_automount_bays']['app_config']['device_helper']['number_of_bays']).to_a
+parity_bays = node['hg_automount_bays']['app_config']['device_helper']['parity_bays']
+
+## Create fstab entries for all bays
+bays.each do |id|
+  suffix = if parity_bays.include?(id)
+             node['hg_automount_bays']['app_config']['device_helper']['suffix_parity']
+           else
+             node['hg_automount_bays']['app_config']['device_helper']['suffix_data']
+           end
+  mount File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'], "#{id}-#{suffix}") do
+    device "/dev/disk/by-bay/#{id}"
+    fstype 'auto'
+    options node['hg_automount_bays']['app_config']['device_helper']['mount_options']
+    dump 0
+    pass 2
+    action :enable
+  end
+end
+
 ## Deploy 'device_helper' to app/bin
 cookbook_file File.join(bin_dir, 'device_helper.rb') do
   source 'app/bin/device_helper.rb'
@@ -54,7 +75,7 @@ systemd_service 'mount-bay@' do
   description 'Mount drive bay and add to mergerfs pool'
   service do
     type 'oneshot'
-    timeout_start_sec '10'
+    timeout_start_sec node['hg_automount_bays']['app_config']['device_helper']['auto_format'] ? '120' : '10'
     exec_start '/opt/automount_bays/bin/device_helper.rb --add %I'
   end
 end
