@@ -18,7 +18,8 @@ default['hg_automount_bays']['app_config']['device_helper']['auto_format'] = tru
 ## Mergerfs attributes
 default['hg_mergerfs']['filesystems'] = {
   '/storage' => {
-    'mount_points' => '/mnt/*-data',
-    'options' => %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool)
+    'mount_points' => "/mnt/*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}",
+    'options' => %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool),
+    'automount' => true
   }
 }
