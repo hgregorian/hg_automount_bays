@@ -22,17 +22,18 @@ end
 
 ## Assign lists for bay designation
 bays = (1..node['hg_automount_bays']['app_config']['device_helper']['number_of_bays']).to_a
-parity_bays = node['hg_automount_bays']['app_config']['device_helper']['parity_bays']
+parity_bays = node['hg_automount_bays']['app_config']['device_helper']['parity_bays'].map(&:to_i)
 
 ## Create fstab entries for all bays
 bays.each do |id|
-  suffix = if parity_bays.include?(id)
+  bay_id = id.to_s.rjust(2, '0')
+  suffix = if parity_bays.include?(bay_id.to_i)
              node['hg_automount_bays']['app_config']['device_helper']['suffix_parity']
            else
              node['hg_automount_bays']['app_config']['device_helper']['suffix_data']
            end
-  mount File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'], "#{id}-#{suffix}") do
-    device "/dev/disk/by-bay/#{id}"
+  mount File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'], "#{bay_id}-#{suffix}") do
+    device "/dev/disk/by-bay/#{bay_id}"
     fstype 'auto'
     options node['hg_automount_bays']['app_config']['device_helper']['mount_options']
     dump 0

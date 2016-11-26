@@ -53,7 +53,8 @@ def hba_info
     section[:state] = section[:state].match(/\((.*?)\)/)[1]
 
     ## Provide a reasonable physical bay ID (1-24, left to right, top to bottom)
-    section[:bay_id] = (1..@options[:number_of_bays]).to_a.each_slice(4).to_a.map(&:reverse).flatten[section[:slot].to_i]
+    bay_id = (1..@options[:number_of_bays]).to_a.each_slice(4).to_a.map(&:reverse).flatten[section[:slot].to_i]
+    section[:bay_id] = bay_id.to_s.rjust(2, '0')
   end
 
   ## Provide hash with GUIDs (WWN/WWID) as keys
@@ -75,8 +76,8 @@ def run_command(cmd, abort_on_error = false)
   result.stdout
 end
 
-def parity_bay?(bay)
-  @options[:parity_bays].include? bay.to_i
+def parity_bay?(bay_id)
+  @options[:parity_bays].map(&:to_i).include? bay_id.to_i
 end
 
 def mergerfs_modify_pool(action, mount, srcmount)
@@ -102,10 +103,6 @@ def mergerfs_modify_pool(action, mount, srcmount)
       end
     end
   end
-end
-
-def zero_padding(num, padding)
-  num.to_s.rjust(padding.to_i, '0')
 end
 
 def blkid_attrs(bay_id)
@@ -191,9 +188,9 @@ if @options[:add]
 
   ## Define mount point based on whether or not it has been designated as a parity bay
   mount_point = if parity_bay?(bay_id)
-                  File.join(@options[:mount_root], "#{zero_padding(bay_id, 2)}-#{@options[:suffix_parity]}")
+                  File.join(@options[:mount_root], "#{bay_id}-#{@options[:suffix_parity]}")
                 else
-                  File.join(@options[:mount_root], "#{zero_padding(bay_id, 2)}-#{@options[:suffix_data]}")
+                  File.join(@options[:mount_root], "#{bay_id}-#{@options[:suffix_data]}")
                 end
 
   if mounted?(mount_point)
@@ -210,10 +207,9 @@ if @options[:add]
 end
 
 if @options[:remove]
-  logger(:info, "Removing drive in bay ID #{@options[:remove]}")
+  bay_id = @options[:remove]
 
-  ## Pad bay_id with 0, i.e. 3 => 03, 20 => 20, etc.
-  bay_id = zero_padding(@options[:remove], 2)
+  logger(:info, "Removing drive in bay ID #{bay_id}")
 
   ## Determine mount point from /proc/mounts
   mount_point = begin
