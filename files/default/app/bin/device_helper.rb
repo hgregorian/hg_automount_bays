@@ -79,9 +79,29 @@ def parity_bay?(bay)
   @options[:parity_bays].include? bay.to_i
 end
 
-def mergerfs_ctl(cmd)
+def mergerfs_modify_pool(action, mount, srcmount)
   return unless @options[:mergerfs_support]
-  run_command(cmd)
+
+  srcmount_matches = run_command('/usr/local/sbin/mergerfs.ctl info').split.grep(/^#{srcmount}$/)
+
+  case action
+  when :add
+    logger(:info, "#{action.capitalize} #{srcmount} to #{mount}")
+    if srcmount_matches.empty?
+      run_command("/usr/local/sbin/mergerfs.ctl -m #{mount} add path #{srcmount}")
+    else
+      logger(:error, "#{srcmount} already added to #{mount}!")
+    end
+  when :remove
+    logger(:info, "#{action.capitalize} #{srcmount} from #{mount}")
+    if srcmount_matches.empty?
+      logger(:error, "#{srcmount} not present for #{mount}!")
+    else
+      srcmount_matches.each do |m|
+        run_command("/usr/local/sbin/mergerfs.ctl -m #{mount} remove path #{m}")
+      end
+    end
+  end
 end
 
 def zero_padding(num, padding)
@@ -94,10 +114,14 @@ def blkid_attrs(bay_id)
 end
 
 def wwn_lookup(dev)
-  result = run_command("/lib/udev/scsi_id -g /dev/#{dev}", true)
+  result = run_command("/lib/udev/scsi_id -g /dev/#{dev}", false)
   wwn = result.chomp[1..-1]
   logger(:debug, "WWN for #{dev}: #{wwn}")
   wwn
+end
+
+def mounted?(mount_point)
+  !File.readlines('/proc/mounts').grep(/#{mount_point}/).empty?
 end
 
 begin
@@ -138,11 +162,10 @@ if ARGV[0] =~ /^sd[a-z]+$/
       puts str
       logger(:debug, str)
     end
-    exit(0)
   else
     logger(:warn, "No result found for #{dev}; not managed by HBA", true)
-    exit(1)
   end
+  exit(0)
 end
 
 if @options[:add]
@@ -173,36 +196,38 @@ if @options[:add]
                   File.join(@options[:mount_root], "#{zero_padding(bay_id, 2)}-#{@options[:suffix_data]}")
                 end
 
-  ## Create mount point and mount
-  FileUtils.mkdir_p(mount_point)
-  run_command("/usr/bin/mount #{mount_point}")
+  if mounted?(mount_point)
+    logger(:info, "#{mount_point} already mounted")
+  else
+    ## Create mount point and mount
+    FileUtils.mkdir_p(mount_point)
+    run_command("/usr/bin/mount #{mount_point}")
+    logger(:info, "Mounted #{bay_id} at #{mount_point}")
+  end
 
   ## Add to merger volume if not in a parity bay
-  mergerfs_ctl("/usr/local/sbin/mergerfs.ctl -m /storage add path #{mount_point}") unless parity_bay?(bay_id)
+  mergerfs_modify_pool(:add, '/storage', mount_point) unless parity_bay?(bay_id)
 end
 
 if @options[:remove]
+  logger(:info, "Removing drive in bay ID #{@options[:remove]}")
+
   ## Pad bay_id with 0, i.e. 3 => 03, 20 => 20, etc.
   bay_id = zero_padding(@options[:remove], 2)
 
-  ## Since it doesn't matter if this is a parity or data bay, look for either
-  dirs = Dir.glob(File.join(@options[:mount_root], "#{bay_id}-*"))
+  ## Determine mount point from /proc/mounts
+  mount_point = begin
+                  File.readlines('/proc/mounts').grep(/#{File.join(@options[:mount_root], bay_id)}/)[0].split[1]
+                rescue
+                  nil
+                end
 
-  ## Something is horribly wrong if a bay_id matches multiples (implies that mount points exist for both parity and data)
-  abort "Too many matches for removal! #{dirs}" if dirs.length > 1
-
-  ## Store single match as mount point
-  mount_point = dirs[0]
-
-  ## This is precautionary as there's no reason to believe, at this time,
-  ## that a bay_id, designated for parity, could've been mounted as a data mount
-  mergerfs_mount_point = File.join(@options[:mount_root], "#{bay_id}-#{@options[:suffix_data]}")
-  mergerfs_ctl("/usr/local/sbin/mergerfs.ctl -m /storage remove path #{mergerfs_mount_point}")
-
-  ## Unmount and clean-up mount point
-  unless mount_point.empty?
+  ## Remove mount point from mergerfs pool, unmount clean-up
+  if mount_point
+    mergerfs_modify_pool(:remove, '/storage', mount_point)
     run_command("/usr/bin/umount -l #{mount_point}")
     FileUtils.rm_rf(mount_point)
+    logger(:info, "Unmounted #{bay_id} at #{mount_point}")
   end
 end
 
