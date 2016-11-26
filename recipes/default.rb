@@ -62,8 +62,8 @@ file File.join(etc_dir, 'device_helper.yml') do
   content JSON.parse(node['hg_automount_bays']['app_config']['device_helper'].to_json).to_yaml
 end
 
-## Setup logrotate for 'reposync' logs
-logrotate_app 'reposync-log' do
+## Setup logrotate for 'device_helper' logs
+logrotate_app 'device_helper-log' do
   path File.join(app_dir, 'var/log/device_helper.log')
   frequency 'weekly'
   rotate 4
@@ -114,18 +114,6 @@ systemd_udev_rules '99-automount-bays' do
     ],
     [
       {
-        'key' => 'ENV{BAY_ID}',
-        'operator' => '==',
-        'value' => ''
-      },
-      {
-        'key' => 'GOTO',
-        'operator' => '=',
-        'value' => 'exit_rule'
-      }
-    ],
-    [
-      {
         'key' => 'SYMLINK',
         'operator' => '+=',
         'value' => 'disk/by-bay/$env{BAY_ID}'
@@ -136,6 +124,11 @@ systemd_udev_rules '99-automount-bays' do
         'key' => 'ACTION',
         'operator' => '==',
         'value' => 'add'
+      },
+      {
+        'key' => 'ENV{BAY_ID}',
+        'operator' => '!=',
+        'value' => ''
       },
       {
         'key' => 'PROGRAM',
@@ -150,14 +143,16 @@ systemd_udev_rules '99-automount-bays' do
     ],
     [
       {
+        'key' => 'IMPORT{program}',
+        'operator' => '=',
+        'value' => "#{File.join(bin_dir, 'parse_devnames.rb')} '$env{DEVLINKS}'"
+      }
+    ],
+    [
+      {
         'key' => 'ACTION',
         'operator' => '==',
         'value' => 'remove'
-      },
-      {
-        'key' => 'IMPORT{program}',
-        'operator' => '=',
-        'value' => "#{File.join(bin_dir, 'parse_devnames.rb')} '$env{DEVNAMES}'"
       },
       {
         'key' => 'PROGRAM',
