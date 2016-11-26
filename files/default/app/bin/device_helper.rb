@@ -227,7 +227,7 @@ if @options[:remove]
     mergerfs_modify_pool(:remove, '/storage', mount_point)
     run_command("/usr/bin/umount -l #{mount_point}")
     FileUtils.rm_rf(mount_point)
-    logger(:info, "Unmounted #{bay_id} at #{mount_point}")
+    logger(:info, "Unmounted #{mount_point}")
   end
 end
 
