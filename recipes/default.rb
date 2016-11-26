@@ -72,21 +72,11 @@ end
 
 ## Deploy system.unit for mounting bays
 systemd_service 'mount-bay@' do
-  description 'Mount drive bay and add to mergerfs pool'
+  description 'Mount drive bay and optionally add to mergerfs pool'
   service do
     type 'oneshot'
     timeout_start_sec node['hg_automount_bays']['app_config']['device_helper']['auto_format'] ? '120' : '10'
     exec_start '/opt/automount_bays/bin/device_helper.rb --add %I'
-  end
-end
-
-## Deploy system.unit for unmounting bays
-systemd_service 'unmount-bay@' do
-  description 'Unmount drive bay and remove from mergerfs pool'
-  service do
-    type 'oneshot'
-    timeout_start_sec '10'
-    exec_start '/opt/automount_bays/bin/device_helper.rb --remove %I'
   end
 end
 
@@ -155,14 +145,9 @@ systemd_udev_rules '99-automount-bays' do
         'value' => 'remove'
       },
       {
-        'key' => 'PROGRAM',
-        'operator' => '=',
-        'value' => '/usr/bin/systemd-escape -p --template=unmount-bay@.service $env{BAY_ID}'
-      },
-      {
-        'key' => 'ENV{SYSTEMD_WANTS}',
+        'key' => 'RUN',
         'operator' => '+=',
-        'value' => '%c'
+        'value' => "#{File.join(bin_dir, 'device_helper.rb')} --remove $env{BAY_ID}"
       }
     ],
     [
