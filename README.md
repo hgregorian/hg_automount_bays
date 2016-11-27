@@ -14,6 +14,8 @@ All things needed to automatically mount bays.
 
 ## Usage
 
+Regarding justification of current `udev` rule configuration, please see [this bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=871074) for more information.
+
 ### hg_automount_bays::default
 
 Include `hg_automount_bays`:
