@@ -135,6 +135,11 @@ systemd_udev_rules '99-automount-bays' do
         'key' => 'PROGRAM',
         'operator' => '=',
         'value' => '/usr/bin/systemd-escape -p --template=mount-bay@.service $env{BAY_ID}'
+      },
+      {
+        'key' => 'ENV{SYSTEMD_WANTS}',
+        'operator' => '+=',
+        'value' => '%c'
       }
     ],
     [
