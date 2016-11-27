@@ -50,14 +50,6 @@ cookbook_file File.join(bin_dir, 'device_helper.rb') do
   group 'root'
 end
 
-## Deploy 'parse_devnames' to app/bin
-cookbook_file File.join(bin_dir, 'parse_devnames.rb') do
-  source 'app/bin/parse_devnames.rb'
-  mode '0755'
-  owner 'root'
-  group 'root'
-end
-
 ## Deploy configuration file for 'device_helper' to app/etc
 file File.join(etc_dir, 'device_helper.yml') do
   content JSON.parse(node['hg_automount_bays']['app_config']['device_helper'].to_json).to_yaml
