@@ -101,6 +101,11 @@ systemd_udev_rules '99-automount-bays' do
         'value' => 'sd*[!0-9]'
       },
       {
+        'key' => 'ENV{DEVTYPE}',
+        'operator' => '!=',
+        'value' => 'disk'
+      },
+      {
         'key' => 'GOTO',
         'operator' => '=',
         'value' => 'exit_rule'
