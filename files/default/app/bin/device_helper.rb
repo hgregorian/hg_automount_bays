@@ -80,26 +80,26 @@ def parity_bay?(bay_id)
   @options[:parity_bays].map(&:to_i).include? bay_id.to_i
 end
 
-def mergerfs_modify_pool(action, mount, srcmount)
+def mergerfs_modify_pool(action, filesystem, srcmount)
   return unless @options[:mergerfs_support]
 
   srcmount_matches = run_command('/usr/local/sbin/mergerfs.ctl info').split.grep(/^#{srcmount}$/)
 
   case action
   when :add
-    logger(:info, "#{action.capitalize} #{srcmount} to #{mount}")
+    logger(:info, "#{action.capitalize} #{srcmount} to mergerfs filesystem '#{filesystem}'")
     if srcmount_matches.empty?
-      run_command("/usr/local/sbin/mergerfs.ctl -m #{mount} add path #{srcmount}")
+      run_command("/usr/local/sbin/mergerfs.ctl -m #{filesystem} add path #{srcmount}")
     else
-      logger(:error, "#{srcmount} already added to #{mount}!")
+      logger(:error, "#{srcmount} already in mergerfs filesystem '#{filesystem}'")
     end
   when :remove
-    logger(:info, "#{action.capitalize} #{srcmount} from #{mount}")
+    logger(:info, "#{action.capitalize} #{srcmount} from mergerfs filesystem '#{filesystem}'")
     if srcmount_matches.empty?
-      logger(:error, "#{srcmount} not present for #{mount}!")
+      logger(:error, "#{srcmount} not present in mergerfs filesystem '#{filesystem}'")
     else
       srcmount_matches.each do |m|
-        run_command("/usr/local/sbin/mergerfs.ctl -m #{mount} remove path #{m}")
+        run_command("/usr/local/sbin/mergerfs.ctl -m #{filesystem} remove path #{m}")
       end
     end
   end
@@ -215,7 +215,7 @@ if @options[:remove]
   mount_point = begin
                   File.readlines('/proc/mounts').grep(/#{File.join(@options[:mount_root], bay_id)}/)[0].split[1]
                 rescue
-                  nil
+                  Dir.glob(File.join(@options[:mount_root], "#{bay_id}-*"))[0]
                 end
 
   ## Remove mount point from mergerfs pool, unmount clean-up
