@@ -142,7 +142,7 @@ rescue OptionParser::InvalidOption, OptionParser::MissingArgument
 end
 
 logger(:debug, "Called with options #{@options}")
-logger(:debug, "ARGV[0] == #{ARGV[0]}")
+logger(:debug, "Called with args #{ARGV}")
 
 if ARGV[0] =~ /^sd[a-z]+$/
   dev = ARGV[0]
