@@ -7,15 +7,15 @@ require 'open3'
 require 'optparse'
 require 'yaml'
 
-DRY_RUN = false
-
 ## Setup some init variables
 program_name = File.basename($PROGRAM_NAME, File.extname($PROGRAM_NAME))
 
 config_path = File.join(__dir__, '../etc', "#{program_name}.yml")
-@log = Logger.new(File.join(__dir__, '../var/log', "#{program_name}.log"))
 app_config = YAML.load_file(config_path)
 @options = app_config.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+
+@log = Logger.new(File.join(__dir__, '../var/log', "#{program_name}.log"))
+@log.level = Logger.const_get(@options[:log_level].to_s.upcase)
 
 def logger(sev, msg, fatal = false)
   @log.send(sev, msg)
@@ -23,12 +23,15 @@ def logger(sev, msg, fatal = false)
 end
 
 def sanitize_key(string)
+  ## normalize case
   string.downcase!
-  # string.gsub!(/\(.*/, '')
+  ## remove non-alpha/whitespace and everything after
   string.gsub!(/[^a-z\s].*/, '')
-  string.gsub!(/[^a-z\s]/, '')
+  ## trim leading and trailing whitespace
   string.strip!
+  ## replace whitespace with underscore
   string.gsub!(/\s/, '_')
+  ## return as symbol
   string.to_sym
 end
 
@@ -36,7 +39,7 @@ def hba_info
   ## Split stdout into device sections
   result = run_command('/usr/local/sbin/sas3ircu 0 display', true)
   sections = result.scan(/^Device.*?\n(.*?)(?:\n\n|\n---*?)/m).flatten.map { |x| x.split("\n") }
-  logger(:debug, "Saw #{sections.length} sections")
+  logger(:debug, "HBA info returned #{sections.length} sections")
 
   ## Break individual entries in sections into key/value pairs
   sections.map! do |section|
