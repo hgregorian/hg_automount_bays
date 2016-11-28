@@ -20,6 +20,7 @@ All things needed to automatically mount bays. (needs real description and actua
 |`node['hg_automount_bays']['app_config']['device_helper']['mount_options']`|Array|Mount options for individual drives|%w(defaults nofail errors=remount-ro)|
 |`node['hg_automount_bays']['app_config']['device_helper']['auto_format']`|Boolean|Automatically format drives placed in bays|true|
 |`node['hg_automount_bays']['app_config']['device_helper']['log_level']`|Symbol|Set logging level|:info|
+|`node['hg_automount_bays']['app_config']['mergerfs']['dummy_srcmount_path']`|String|Path to mount read-only srcmount|'/opt/ro_srcmount'|
 
 ## Usage
 
