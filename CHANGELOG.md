@@ -1,3 +1,8 @@
+# 0.4.0
+- added missing package dependency (ruby) and appropriate gem install (both needed for `device_helper`)
+- excerpted mergerfs support into its own recipe and provided a "dummy" read-only srcmount (see inline notes in this recipe)
+- reordered recipe inclusions to combat some terrible assumptions made earlier
+
 # 0.3.0
 - reworked udev rules
 - logging for all `device_helper.rb` actions
