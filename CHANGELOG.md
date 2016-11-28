@@ -1,4 +1,7 @@
 # 0.3.0
+- reworked udev rules
+- logging for all `device_helper.rb` actions
+- documentation improvements
 
 # 0.2.0
 - in `device_helper.rb`, depending on symlinks in `/dev/disk` was a horrible idea; now sourcing WWN/WWID's using a more reliable method
