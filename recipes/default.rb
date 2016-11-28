@@ -4,8 +4,17 @@
 #
 # Copyright (c) 2016 Heig Gregorian, All Rights Reserved.
 
-include_recipe 'hg_sas3ircu::default'
-include_recipe 'hg_mergerfs::default' if node['hg_automount_bays']['app_config']['device_helper']['mergerfs_support']
+include_recipe 'hg_sas3ircu::sas3ircu'
+
+if node['hg_automount_bays']['app_config']['device_helper']['mergerfs_support']
+  include_recipe 'hg_automount_bays::mergerfs_support'
+end
+
+package 'dependencies' do
+  package_name %w(ruby)
+end
+
+gem_package 'mixlib-shellout'
 
 ## Setup application directory structure
 app_dir = node['hg_automount_bays']['app_path']
@@ -161,3 +170,5 @@ systemd_udev_rules '99-automount-bays' do
   ]
   action :create
 end
+
+include_recipe 'hg_sas3ircu::mpt3sas'
