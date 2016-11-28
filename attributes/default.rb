@@ -19,7 +19,7 @@ default['hg_automount_bays']['app_config']['device_helper']['log_level'] = :info
 ## Mergerfs attributes
 default['hg_mergerfs']['filesystems'] = {
   '/storage' => {
-    'mount_points' => "/mnt/*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}",
+    'mount_points' => "/mnt/ro_srcmount:/mnt/*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}",
     'options' => %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool),
     'automount' => true
   }
