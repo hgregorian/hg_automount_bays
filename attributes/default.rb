@@ -14,6 +14,7 @@ default['hg_automount_bays']['app_config']['device_helper']['suffix_data'] = 'da
 default['hg_automount_bays']['app_config']['device_helper']['mergerfs_support'] = true
 default['hg_automount_bays']['app_config']['device_helper']['mount_options'] = %w(defaults nofail errors=remount-ro)
 default['hg_automount_bays']['app_config']['device_helper']['auto_format'] = true
+default['hg_automount_bays']['app_config']['device_helper']['log_level'] = :info
 
 ## Mergerfs attributes
 default['hg_mergerfs']['filesystems'] = {
