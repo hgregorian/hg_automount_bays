@@ -1,3 +1,6 @@
+# 0.4.1
+- use `hg_mergerfs` resources and remove attribute references (there's no functional different here)
+
 # 0.4.0
 - added missing package dependency (ruby) and appropriate gem install (both needed for `device_helper`)
 - excerpted mergerfs support into its own recipe and provided a "dummy" read-only srcmount (see inline notes in this recipe)

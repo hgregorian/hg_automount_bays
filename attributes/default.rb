@@ -16,17 +16,3 @@ default['hg_automount_bays']['app_config']['device_helper']['mount_options'] = %
 default['hg_automount_bays']['app_config']['device_helper']['auto_format'] = true
 default['hg_automount_bays']['app_config']['device_helper']['log_level'] = :info
 default['hg_automount_bays']['app_config']['mergerfs']['dummy_srcmount_path'] = '/mnt/ro_srcmount'
-
-## Mergerfs attributes
-default['hg_mergerfs']['filesystems'] = [
-  {
-    'filesystem' => '/storage',
-    'srcmounts' => [
-      node['hg_automount_bays']['app_config']['mergerfs']['dummy_srcmount_path'],
-      File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'],
-                "*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}")
-    ],
-    'options' => %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool),
-    'automount' => true
-  }
-]

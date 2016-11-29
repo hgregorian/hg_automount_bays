@@ -19,4 +19,23 @@ filesystem 'mergerfs_dummy_srcmount' do
   only_if { ::File.readlines('/proc/mounts').grep(/\s+#{dummy_srcmount_path}\s+/).empty? }
 end
 
-include_recipe 'hg_mergerfs::default'
+## Install mergerfs package
+mergerfs_package '2.17.0'
+
+## Install 'mergerfs-tools
+mergerfs_tools '/opt/mergerfs-tools/bin' do
+  commit 'master'
+  symlink true
+  symlink_path '/usr/local/sbin'
+end
+
+## Configure 'mergerfs' pool
+mergerfs_pool '/storage' do
+  srcmounts [
+    dummy_srcmount_path,
+    File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'],
+              "*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}")
+  ]
+  options %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool)
+  automount true
+end
