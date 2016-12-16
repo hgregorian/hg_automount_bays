@@ -14,7 +14,7 @@ filesystem 'mergerfs_dummy_srcmount' do
   file '/opt/mergerfs_dummy_srcmount.file'
   size '1'
   mount dummy_srcmount_path
-  options 'defaults,ro'
+  options 'defaults,nofail,ro'
   action [:create, :enable, :mount]
   only_if { ::File.readlines('/proc/mounts').grep(/\s+#{dummy_srcmount_path}\s+/).empty? }
 end
