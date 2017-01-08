@@ -20,7 +20,7 @@ filesystem 'mergerfs_dummy_srcmount' do
 end
 
 ## Install mergerfs package
-mergerfs_package '2.17.0'
+mergerfs_package '2.18.0'
 
 ## Install 'mergerfs-tools
 mergerfs_tools '/opt/mergerfs-tools/bin' do
@@ -36,6 +36,6 @@ mergerfs_pool '/storage' do
     File.join(node['hg_automount_bays']['app_config']['device_helper']['mount_root'],
               "*-#{node['hg_automount_bays']['app_config']['device_helper']['suffix_data']}")
   ]
-  options %w(defaults category.create=epmfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool)
+  options %w(defaults category.create=mfs moveonenospc=true allow_other minfreespace=20G fsname=mergerfsPool)
   automount true
 end

@@ -1,5 +1,8 @@
+# 0.4.3
+- use mergerfs 2.18.0, change pool policy to non-path preserving
+
 # 0.4.1
-- use `hg_mergerfs` resources and remove attribute references (there's no functional different here)
+- use `hg_mergerfs` resources and remove attribute references (there's no functional difference here)
 
 # 0.4.0
 - added missing package dependency (ruby) and appropriate gem install (both needed for `device_helper`)
