@@ -1,3 +1,6 @@
+# 0.4.4
+- use mergerfs 2.19.0, add options 'use_ino' and 'direct_io'
+
 # 0.4.3
 - use mergerfs 2.18.0, change pool policy to non-path preserving
 
